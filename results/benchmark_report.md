@@ -10,7 +10,10 @@ Here is how environment simulation speed scales with larger swarm sizes:
 
 ![Throughput Scaling Curve](throughput_scaling.png)
 
-## 🚀 Technical Highlights
-- **Zero-copy Vectorization**: Using `jax.vmap` enables concurrent steps across thousands of unique states without manual multi-threading/processing overhead.
-- **Compilation Speeds**: Initial step compilation takes around 1-2 seconds, after which step loops execute at native speed.
-- **Optimized Memory Access**: Execution on device memory is highly optimized, scaling to massive population rollouts without scaling bottleneck issues.
+## What the CPU numbers show
+
+These runs were on a Colab **CPU** runtime (see [`bench/drone_cpu.csv`](bench/drone_cpu.csv)).
+
+- Batching with `jax.vmap` lifts drone throughput from about 94k env-steps/s (1 env) to a peak of about **708k env-steps/s at 1,024 envs**, roughly 7.5x.
+- Past that, CPU throughput **falls**: about 519k at 8,192 envs and about 440k at 32,768 to 65,536 envs, as the batch outgrows the CPU caches. The pendulum curve shows the same rise and fall.
+- `vmap` itself adds no Python loops or multiprocessing, but on CPU there is a clear sweet spot in batch size. Large populations are meant for GPU/TPU, where these numbers still need to be measured.

@@ -1,32 +1,58 @@
 # JAX Swarm ES
 
-An ultra-fast, hardware-accelerated Evolutionary Strategies (ES) framework powered by **Google JAX** for swarm-based continuous control. Train thousands of agents in parallel directly on GPU or CPU with minimal overhead.
+Evolution strategies (ES) over thousands of parallel environments, written in pure **JAX**. A population of neural-network policies is dropped into thousands of copies of a physics environment at once, and the policies that do well pull the search distribution toward themselves. No backprop through the environment, no replay buffer, no value function.
 
-## 📊 Performance & Scaling Graphs
+The environment is a pure function, one episode is a `lax.scan`, and `jax.vmap` turns one episode into a whole generation without touching the environment code.
 
-### 1. Vectorization Throughput Scaling Curve
-By leveraging Google JAX's compiler (`jit`) and automatic vectorization wrapper (`vmap`), we avoid Python interpreter loops during parallel swarm rollouts:
+## 📊 Results
+
+All numbers below come from the files in [`results/`](results/). Training and benchmarks so far ran on **CPU** (a Colab CPU runtime); GPU numbers are still to come.
+
+| Task | Setup | Start | Best | Final (gen) | What it means |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **Drone** | pop 2048 × 5 episodes = 10,240 envs/gen, 500 gens | return −4, 0 targets | return 87 (gen 324) | return 75, **9 targets** (gen 500) | Learns to chase waypoints through gusty wind |
+| **Pendulum** | pop 1024 × 5 episodes, 150 gens | −1279 | −693 (gen 92) | −809 (gen 150) | Improved, but **not solved yet** (solved ≈ −150) |
+
+**Drone.** The policy goes from crashing to reaching about 9 waypoints per 10-second episode. Most of the learning happens in the first ~40 generations, then it plateaus around a return of 75.
+
+**Pendulum.** It plateaued around −770, well short of the ≈ −150 that counts as solved. It most likely settled into a local optimum (spinning or partial swings) instead of balancing upright. Next things to try: more generations and a larger `--sigma` (e.g. 0.1).
+
+### Training curves
+
+![Training Comparison](results/training_comparison.png)
+
+### Throughput scaling (CPU)
 
 ![Throughput Scaling Curve](results/throughput_scaling.png)
 
-### 2. Training Curves & Convergence
-Below is the comparative performance graph showing maximum fitness, population mean, and average policy return over iterations:
+Drone benchmark from [`results/bench/drone_cpu.csv`](results/bench/drone_cpu.csv), one full 500-step episode per env:
 
-![Training Comparison](results/training_comparison.png)
+| Parallel envs | Time per batch | Env steps / s |
+| ---: | ---: | ---: |
+| 1 | 0.005 s | 94k |
+| 64 | 0.10 s | 335k |
+| 1,024 | 0.72 s | **708k** |
+| 8,192 | 7.9 s | 519k |
+| 32,768 | 37.4 s | 438k |
+| 65,536 | 74.3 s | 441k |
+
+On CPU, throughput peaks around 1,024 envs and then falls off as the batch outgrows the cache. That falloff is exactly why this design targets accelerators: on a GPU the curve should keep climbing well past 10k envs. GPU benchmarks are coming next.
 
 ---
 
 ## 🎬 Environment Simulations
 
-### Drone Control
-This environment trains a neural network controller to stabilize or guide a drone. Below are animations showing the control strategy in action:
+### Drone waypoint chasing
+
+An original planar quadrotor environment. Two rotors with independent thrust, so the only way to move sideways is to tilt by spinning them unevenly. Ornstein-Uhlenbeck wind gusts keep pushing it off course. Reaching the gold star (within 30 cm) gives +5 and spawns a new one. Leaving the 8 × 8 m arena or tipping past 90° ends the episode. Each episode is 500 steps (10 s at 50 Hz).
 
 | Episode 0 | Episode 1 | Episode 2 | Episode 3 | Episode 4 |
 | :---: | :---: | :---: | :---: | :---: |
 | ![Drone Ep 0](results/drone/episode_0.gif) | ![Drone Ep 1](results/drone/episode_1.gif) | ![Drone Ep 2](results/drone/episode_2.gif) | ![Drone Ep 3](results/drone/episode_3.gif) | ![Drone Ep 4](results/drone/episode_4.gif) |
 
-### Pendulum Balance
-Classical continuous control task utilizing evolutionary parameter adjustments to balance an inverted pendulum:
+### Pendulum swing-up (work in progress)
+
+Same dynamics and cost as Gym's `Pendulum-v1`, so the returns are comparable (random ≈ −1200, solved ≈ −150). These GIFs show the current, **unsolved** policy.
 
 | Episode 0 | Episode 1 | Episode 2 | Episode 3 | Episode 4 |
 | :---: | :---: | :---: | :---: | :---: |
@@ -34,136 +60,134 @@ Classical continuous control task utilizing evolutionary parameter adjustments t
 
 ---
 
-## 🧠 Evolutionary Strategy & Architecture Overview
+## 🧠 How one generation works
 
-This repository implements **OpenAI-ES (Evolutionary Strategies)** optimized entirely to run within native JAX arrays and compiled functions. 
-
-### Vectorized Population Rollouts
-Traditional reinforcement learning or ES loops evaluate policies sequentially or use heavy multi-processing libraries, adding significant overhead from IPC (inter-process communication).
+This repository implements **OpenAI-ES** (Salimans et al., 2017) entirely as jitted JAX functions.
 
 ```
                +-----------------------+
-               |   Central ES Policy   |
-               |      Parameters       |
+               |   Mean parameters θ   |
                +-----------+-----------+
-                           |  Perturb via Mutation Noise
+                           |  θ ± σ·ε  (antithetic noise)
                            v
          +-------------------------------------+
-         |  Vectorized Swarm / Population (W)  |
-         |   [W_1, W_2, ... , W_PopSize]       |
+         |  Population: 2048 policies          |
          +-----------------+-------------------+
-                           |  vmap(Rollout)
+                           |  vmap over policies × vmap over 5 episodes
                            v
      +---------------------------------------------+
-     | Vectorized JAX Environments (vmap + jit)    |
-     | Runs whole episode steps in parallel on GPU  |
+     |  10,240 environments, 500 steps each        |
+     |  one lax.scan per episode, all in one jit   |
      +---------------------+-----------------------+
-                           | Gather Total Rewards / Fitness
+                           |  episode returns
                            v
          +-------------------------------------+
-         |  Fitness Evaluation Array (F)       |
+         |  Centered-rank fitness shaping      |
          +-----------------+-------------------+
-                           | Compute Gradient Estimate
+                           |  gradient estimate  εᵀ·ranks / (nσ)
                            v
                +-----------------------+
-               |      Adam/SGD         |
-               |  Parameter Update     |
+               |      Adam step on θ   |
                +-----------------------+
 ```
 
-Instead of launching sub-processes, `jax.vmap` scales execution at the hardware execution layer (CUDA warps or SIMD registers). By grouping the environment step rules into pure JAX functions, we can step a population of **65,536 environments** in a fraction of a millisecond.
+Ten generations at a time are wrapped in a single `lax.scan`, so Python only wakes up to print a log line.
+
+| Piece | File | Idea |
+| :--- | :--- | :--- |
+| Environments | `swarm_es/envs/` | state is a `NamedTuple`, `step` is a pure function |
+| Rollout | `swarm_es/rollout.py` | one episode = one `lax.scan`; crashed envs freeze in place |
+| Policy | `swarm_es/policy.py` | tanh MLP flattened to one vector with `ravel_pytree` |
+| Optimizer | `swarm_es/es.py` | antithetic sampling, centered ranks, Adam |
+| Training | `swarm_es/train.py` | `vmap(vmap(rollout))` + `lax.scan` over generations |
+| Benchmark | `swarm_es/bench.py` | env steps/s as the number of parallel envs grows |
 
 ---
 
-## 🛠️ Detailed Installation & Setup
+## 🛠️ Installation
 
-### Prerequisites
-- Python 3.9+
-- JAX (Compatible with CPU, GPU, or TPU backends)
+Requires Python 3.10+.
 
-Clone the repository and install in editable mode:
 ```bash
 git clone https://github.com/shiroonigami23-ui/ax-swarm-es.git
 cd ax-swarm-es
-pip install -e .
+pip install -e ".[dev]"
 ```
 
-### Configuring GPU/TPU Support
-Ensure that you install the JAX version matching your hardware's CUDA platform to unlock massive acceleration:
+For an NVIDIA GPU on Linux, install the CUDA build of JAX, then check that JAX actually sees the GPU:
+
 ```bash
-pip install --upgrade "jax[cuda12]" -f https://storage.googleapis.com/jax-releases/jax_releases.html
+pip install -U "jax[cuda12]"
+python -c "import jax; print(jax.devices())"   # should list a CUDA device, not CpuDevice
 ```
+
+On Colab, run the install, restart the runtime, then run the check. If it still prints `CpuDevice`, everything will silently run on CPU.
 
 ---
 
-## 💻 CLI Usage Guide
+## 💻 Usage
 
-### 1. Benchmarking Environment Speeds
-Evaluate raw step throughput (environment steps per second) over different vectorized batch sizes:
 ```bash
-python -m swarm_es.bench --env [drone|pendulum] --sizes 1 64 1024 8192 32768
+pytest -q                                                        # tests
+
+python -m swarm_es.train --env drone --gens 500                  # 2048 x 5 = 10,240 envs/gen
+python -m swarm_es.train --env pendulum --pop 1024 --gens 400 --sigma 0.1
+
+python -m swarm_es.render --run runs/drone --episodes 5          # GIFs
+python -m swarm_es.bench --env drone --sizes 1 64 1024 8192 32768
 ```
 
-### 2. Training Agents
-To train an agent, launch the training script. Performance checkpoints, parameters (`.npz`), history (`.csv`), and loss curves are automatically saved under the directory designated by `--env`.
-```bash
-# Train Drone stabilizer
-python -m swarm_es.train --env drone --gens 500 --log-every 10
+Each training run writes `params.npz`, `config.json`, `history.csv` and `learning_curve.png` to `runs/<env>/`. To load trained parameters:
 
-# Train Pendulum swing-up
-python -m swarm_es.train --env pendulum --pop 1024 --gens 150 --log-every 5
+```python
+import numpy as np
+params = np.load("runs/drone/params.npz")["mean"]   # flat parameter vector
 ```
 
-### 3. Visualizing Renders
-Use the renderer to generate evaluation GIFs demonstrating how the best policy performs:
-```bash
-python -m swarm_es.render --run runs/drone --episodes 5
-```
+### Training flags
+
+| Flag | Meaning | Default |
+| :--- | :--- | :---: |
+| `--env` | `drone` or `pendulum` | `drone` |
+| `--pop` | population size (must be even) | 2048 |
+| `--n-eval` | episodes per member; `pop × n-eval` envs run in parallel | 5 |
+| `--gens` | generations | 300 |
+| `--sigma` | std of the Gaussian parameter noise | 0.05 |
+| `--lr` | Adam learning rate on the mean | 0.02 |
+| `--weight-decay` | L2 pull on the mean | 0.005 |
+| `--hidden` | hidden layer sizes | `32 32` |
+| `--log-every` | generations per jitted chunk / log line | 10 |
+| `--seed` | random seed | 0 |
+
+The results above used the defaults, except `--gens 500` for the drone and `--pop 1024 --gens 150` for the pendulum. Exact configs are in `results/<env>/config.json`.
 
 ---
 
-## 🎛️ Hyperparameters Directory
+## 🚀 JAX tips
 
-Below is a list of parameters adjustable via source code customization or configuration edits:
-
-| Parameter | Description | Drone Default | Pendulum Default |
-| :--- | :--- | :---: | :---: |
-| `pop` / Population Size | Number of perturbed policy mutations evaluated per generation. | 2048 | 1024 |
-| `gens` / Generations | Maximum evolutionary generations to train. | 500 | 150 |
-| `learning_rate` | Step size adjustment rate for the parameter optimizer (Adam). | 0.01 | 0.02 |
-| `l2_decay` | Weight decay penalty coefficient to prevent exploding weights. | 0.005 | 0.005 |
-| `sigma` | Standard deviation of the Gaussian mutation noise. | 0.05 | 0.1 |
-| `episode_len` | Maximum step limits allowed before termination. | 500 | 200 |
-
----
-
-## 🚀 JAX Performance Tuning & Tips
-
-For peak efficiency on your local workstation, virtual machines, or GCP environments, make use of these helpful parameters:
-
-1. **Prevent Out Of Memory (OOM) Errors**: JAX by default pre-allocates 90% of GPU memory at startup. Disable this or adjust allocation fractions using environment variables if running in parallel with other models:
+1. **GPU memory.** JAX pre-allocates most of the GPU memory at startup. If you share the GPU with something else, turn that off:
    ```bash
    export XLA_PYTHON_CLIENT_PREALLOCATE=false
    ```
-2. **Float 32 vs Float 64**: JAX operates on single-precision float32 by default. Stick to float32 to utilize GPU tensor cores and increase execution speed by up to 4x over float64.
-3. **Compilation Caching**: If your run times are extended, enable the compilation cache to avoid recompiling XLA modules across multiple execution runs:
+2. **Compilation cache.** Reuse compiled programs across runs:
    ```bash
-   export JAX_COMPILER_CACHE_DIR=/tmp/jax_cache
+   export JAX_COMPILATION_CACHE_DIR=/tmp/jax_cache
    ```
+3. **First generation is slow.** The first call compiles the whole generation with XLA; later calls reuse it.
 
----
+## ❓ FAQ
 
-## ❓ FAQ & Troubleshooting
+**I get a `ConcretizationTypeError` / tracer error.** Inside jitted code, array shapes and Python `if` conditions must not depend on traced values. Use `jnp.where`, `jax.lax.cond` or `jax.lax.select` instead.
 
-#### Q: I receive a `ConcretizationTypeError` or JAX Tracer Error.
-* **Reason**: JAX requires loop conditions and array dimensions to be static/constant at compile-time. Avoid standard python conditions inside the jit-compiled loop that depend on dynamic array values. Use `jax.lax.cond` or `jax.lax.select` instead.
+**Why ES instead of PPO?** Fitness evaluations are independent, so the population maps straight onto `vmap`. Only episode returns are needed, so long horizons and non-differentiable crashes are fine. The cost is sample hunger: millions of env steps per generation, which is only affordable because the env runs on the same device as the policy.
 
-#### Q: The performance is slow during the first generation, then dramatically speeds up. Why?
-* **Reason**: This is normal! The first run triggers JAX compilation. XLA compiles the mathematical graphs into highly optimized assembly instruction sets for your CPU/GPU hardware. Subsequent steps run at bare-metal execution speeds.
+## References
 
-#### Q: How do I load a trained model?
-* **Reason**: The model parameters are saved inside `runs/{env}/params.npz`. You can load them back in python using:
-  ```python
-  import numpy as np
-  params = np.load('runs/drone/params.npz')
-  ```
+- Salimans et al., *Evolution Strategies as a Scalable Alternative to Reinforcement Learning*, 2017.
+- Wierstra et al., *Natural Evolution Strategies*, JMLR 2014.
+- Freeman et al., *Brax: A Differentiable Physics Engine for Large Scale Rigid Body Simulation*, 2021.
+- Lange, *gymnax: A JAX-based Reinforcement Learning Environment Library*, 2022.
+
+## License
+
+MIT
