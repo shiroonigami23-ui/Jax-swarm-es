@@ -6,7 +6,7 @@ The environment is a pure function, one episode is a `lax.scan`, and `jax.vmap` 
 
 ## 📊 Results
 
-All numbers below come from the files in [`results/`](results/). Training and benchmarks so far ran on **CPU** (a Colab CPU runtime); GPU numbers are still to come.
+All numbers below come from the files in [`results/`](results/). The tables directly below are from a Colab **CPU** runtime. The **GPU results** further down are from a Tesla T4: the same drone training finishes in **1.5 minutes**, and env throughput reaches **15.1M steps/s**, about **34x** the CPU at 65,536 envs.
 
 | Task | Setup | Start | Best | Final (gen) | What it means |
 | :--- | :--- | :---: | :---: | :---: | :--- |
@@ -36,7 +36,7 @@ Drone benchmark from [`results/bench/drone_cpu.csv`](results/bench/drone_cpu.csv
 | 32,768 | 37.4 s | 438k |
 | 65,536 | 74.3 s | 441k |
 
-On CPU, throughput peaks around 1,024 envs and then falls off as the batch outgrows the cache. That falloff is exactly why this design targets accelerators: on a GPU the curve should keep climbing well past 10k envs. GPU benchmarks are coming next.
+On CPU, throughput peaks around 1,024 envs and then falls off as the batch outgrows the cache. On the T4 it keeps climbing and only levels off past 8k envs (see GPU results below).
 
 <!-- GPU-RESULTS:START -->
 ### GPU results (Tesla T4)
