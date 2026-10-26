@@ -1,0 +1,16 @@
+{
+  "env": "drone",
+  "pop": 2048,
+  "n_eval": 5,
+  "gens": 500,
+  "sigma": 0.05,
+  "lr": 0.02,
+  "weight_decay": 0.005,
+  "hidden": [
+    32,
+    32
+  ],
+  "seed": 0,
+  "log_every": 10,
+  "out": "results/gpu"
+}
