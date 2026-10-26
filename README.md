@@ -101,3 +101,21 @@ suite, a short pendulum training run and a CPU benchmark on every push
 ## License
 
 MIT
+
+
+## Results and Visualizations
+
+### 1. Drone Control (Evolutionary Trajectories)
+Here are some episodes rendered from the trained policy on the drone environment:
+
+| Episode 0 | Episode 1 | Episode 2 |
+| :---: | :---: | :---: |
+| ![Episode 0](results/drone/episode_0.gif) | ![Episode 1](results/drone/episode_1.gif) | ![Episode 2](results/drone/episode_2.gif) |
+
+### 2. Training Curves
+
+#### Drone Learning Curve
+![Drone Learning Curve](results/drone/learning_curve.png)
+
+#### Pendulum Learning Curve
+![Pendulum Learning Curve](results/pendulum/learning_curve.png)
