@@ -23,4 +23,4 @@ Classical continuous control task utilizing evolutionary parameter adjustments:
 
 Below is the performance improvement comparison graph over iterations:
 
-![Training Comparison](results/training_comparison.png)
+![Training Comparison](training_comparison.png)
