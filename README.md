@@ -38,6 +38,12 @@ Drone benchmark from [`results/bench/drone_cpu.csv`](results/bench/drone_cpu.csv
 
 On CPU, throughput peaks around 1,024 envs and then falls off as the batch outgrows the cache. That falloff is exactly why this design targets accelerators: on a GPU the curve should keep climbing well past 10k envs. GPU benchmarks are coming next.
 
+<!-- GPU-RESULTS:START -->
+### GPU results
+
+Not run yet. `colab_run.py` fills this section in automatically.
+<!-- GPU-RESULTS:END -->
+
 ---
 
 ## 🎬 Environment Simulations
@@ -109,8 +115,8 @@ Ten generations at a time are wrapped in a single `lax.scan`, so Python only wak
 Requires Python 3.10+.
 
 ```bash
-git clone https://github.com/shiroonigami23-ui/ax-swarm-es.git
-cd ax-swarm-es
+git clone https://github.com/shiroonigami23-ui/jax-swarm-es.git
+cd jax-swarm-es
 pip install -e ".[dev]"
 ```
 
