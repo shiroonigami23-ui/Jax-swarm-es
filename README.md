@@ -73,6 +73,12 @@ Pendulum status: **improved, still not solved (solved ≈ −150)**.
 | ![pendulum gpu 0](results/gpu/pendulum/episode_0.gif) | ![pendulum gpu 1](results/gpu/pendulum/episode_1.gif) | ![pendulum gpu 2](results/gpu/pendulum/episode_2.gif) |
 <!-- GPU-RESULTS:END -->
 
+<!-- SWEEP-RESULTS:START -->
+### Hyperparameter sweep
+
+Not run yet. `colab_run.py --sweep` fills this section in.
+<!-- SWEEP-RESULTS:END -->
+
 ---
 
 ## 🎬 Environment Simulations
@@ -170,6 +176,7 @@ python -m swarm_es.train --env pendulum --pop 1024 --gens 400 --sigma 0.1
 
 python -m swarm_es.render --run runs/drone --episodes 5          # GIFs
 python -m swarm_es.bench --env drone --sizes 1 64 1024 8192 32768
+python -m swarm_es.sweep --env pendulum --lrs 0.005 0.01 0.02 0.05 --sigmas 0.03 0.1 --lr-decays 1.0 0.995
 ```
 
 Each training run writes `params.npz`, `config.json`, `history.csv` and `learning_curve.png` to `runs/<env>/`. To load trained parameters:
@@ -190,6 +197,8 @@ params = np.load("runs/drone/params.npz")["mean"]   # flat parameter vector
 | `--sigma` | std of the Gaussian parameter noise | 0.05 |
 | `--lr` | Adam learning rate on the mean | 0.02 |
 | `--weight-decay` | L2 pull on the mean | 0.005 |
+| `--lr-decay` | multiply lr by this every generation | 1.0 (off) |
+| `--sigma-decay`, `--sigma-min` | multiply sigma by this every generation, never below the min | 1.0, 0.0 |
 | `--hidden` | hidden layer sizes | `32 32` |
 | `--log-every` | generations per jitted chunk / log line | 10 |
 | `--seed` | random seed | 0 |

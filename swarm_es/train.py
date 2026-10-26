@@ -32,6 +32,9 @@ class Config:
     sigma: float = 0.05
     lr: float = 0.02
     weight_decay: float = 0.005
+    lr_decay: float = 1.0     # lr multiplied by this every generation
+    sigma_decay: float = 1.0  # sigma multiplied by this every generation
+    sigma_min: float = 0.0    # floor for the decayed sigma
     hidden: tuple = field(default=(32, 32))
     seed: int = 0
     log_every: int = 10
@@ -45,7 +48,9 @@ def make_generation(env, policy, cfg: Config):
 
     def generation(state: es.ESState, key):
         k_ask, k_eval, k_test = jax.random.split(key, 3)
-        population, eps = es.ask(k_ask, state, cfg.pop, cfg.sigma)
+        sigma = jnp.maximum(cfg.sigma * cfg.sigma_decay ** state.step, cfg.sigma_min)
+        lr = cfg.lr * cfg.lr_decay ** state.step
+        population, eps = es.ask(k_ask, state, cfg.pop, sigma)
 
         # Common random numbers: every member sees the same episodes this
         # generation, so ranking compares policies rather than luck.
@@ -53,7 +58,7 @@ def make_generation(env, policy, cfg: Config):
         fitness, infos = jax.vmap(evaluate, in_axes=(0, None))(population, eval_keys)
 
         new_state = es.tell(
-            state, eps, fitness, cfg.sigma, cfg.lr, cfg.weight_decay
+            state, eps, fitness, sigma, lr, cfg.weight_decay
         )
 
         # How good is the mean itself, on fresh episodes?
@@ -64,6 +69,8 @@ def make_generation(env, policy, cfg: Config):
             "fitness_mean": fitness.mean(),
             "fitness_max": fitness.max(),
             "mean_policy_return": test_ret,
+            "lr": lr,
+            "sigma": sigma,
         }
         for name, value in test_info.items():
             metrics[f"mean_policy_{name}"] = value
@@ -161,6 +168,9 @@ def parse_args(argv=None) -> Config:
     p.add_argument("--sigma", type=float, default=defaults.sigma)
     p.add_argument("--lr", type=float, default=defaults.lr)
     p.add_argument("--weight-decay", type=float, default=defaults.weight_decay)
+    p.add_argument("--lr-decay", type=float, default=defaults.lr_decay)
+    p.add_argument("--sigma-decay", type=float, default=defaults.sigma_decay)
+    p.add_argument("--sigma-min", type=float, default=defaults.sigma_min)
     p.add_argument("--hidden", type=int, nargs="+", default=list(defaults.hidden))
     p.add_argument("--seed", type=int, default=defaults.seed)
     p.add_argument("--log-every", type=int, default=defaults.log_every)
@@ -168,7 +178,8 @@ def parse_args(argv=None) -> Config:
     a = p.parse_args(argv)
     return Config(
         env=a.env, pop=a.pop, n_eval=a.n_eval, gens=a.gens, sigma=a.sigma,
-        lr=a.lr, weight_decay=a.weight_decay, hidden=tuple(a.hidden),
+        lr=a.lr, weight_decay=a.weight_decay, lr_decay=a.lr_decay,
+        sigma_decay=a.sigma_decay, sigma_min=a.sigma_min, hidden=tuple(a.hidden),
         seed=a.seed, log_every=a.log_every, out=a.out,
     )
 
