@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Tests
+        run: pytest -q
+      - name: Short pendulum training run
+        run: python -m swarm_es.train --env pendulum --pop 256 --n-eval 2 --gens 20 --log-every 5 --out ci-runs
+      - name: Throughput benchmark (CPU)
+        run: python -m swarm_es.bench --env drone --sizes 1 64 1024 --repeats 2 --out ci-runs/bench
+      - uses: actions/upload-artifact@v4
+        if: matrix.python-version == '3.12'
+        with:
+          name: ci-runs
+          path: ci-runs

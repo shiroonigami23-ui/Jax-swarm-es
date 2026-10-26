@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swarm-es"
+version = "0.1.0"
+description = "Evolution strategies over thousands of parallel, vmapped JAX environments"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Aryan Singh Chandel" }]
+requires-python = ">=3.10"
+dependencies = ["jax>=0.4.30", "numpy", "matplotlib", "pillow"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+cuda = ["jax[cuda12]>=0.4.30"]
+
+[tool.setuptools.packages.find]
+include = ["swarm_es*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
