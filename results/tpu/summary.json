@@ -1,0 +1,138 @@
+{
+  "device": "TPU v5 lite",
+  "bench": {
+    "tpu": {
+      "1": 35590.98582833373,
+      "64": 28227656.04515017,
+      "1024": 199937519.52310905,
+      "8192": 290051687.4086608,
+      "32768": 45600793.304623984,
+      "65536": 45498978.55570555,
+      "131072": 39519896.59815876,
+      "262144": 37060358.298877716
+    },
+    "gpu": {
+      "1": 24954.166682230327,
+      "64": 1424239.071344882,
+      "1024": 8512946.953590028,
+      "8192": 14411090.167024935,
+      "32768": 15013070.06688287,
+      "65536": 15109264.30848882
+    },
+    "cpu": {
+      "1": 94338.32326357819,
+      "64": 334635.5676449662,
+      "1024": 707975.5973201176,
+      "8192": 519097.2190367446,
+      "32768": 438103.49734597484,
+      "65536": 440727.371788888
+    }
+  },
+  "drone": {
+    "gens": 500,
+    "start": -4.05587911605835,
+    "best": 85.84922790527344,
+    "best_gen": 477,
+    "final": 72.95674896240234,
+    "last10_avg": 75.11982421875,
+    "final_hits": 8.800000190734863,
+    "last10_hits_avg": 8.720000076293946
+  },
+  "drone_time": 34.56597196400003,
+  "studies": {
+    "small_pop": {
+      "env": "pendulum",
+      "config": {
+        "env": "pendulum",
+        "pop": 512,
+        "n_eval": 4,
+        "gens": 300,
+        "sigma": 0.05,
+        "lr": 0.02,
+        "weight_decay": 0.005,
+        "lr_decay": 1.0,
+        "sigma_decay": 1.0,
+        "sigma_min": 0.0,
+        "curriculum_gens": 0,
+        "curriculum_start": 0.1,
+        "hidden": [
+          32,
+          32
+        ],
+        "log_every": 10
+      },
+      "n_seeds": 12,
+      "success_threshold": -200.0,
+      "success_rate": 0.08333333333333333,
+      "final_eval_median": -747.1210021972656,
+      "final_eval_mean": -661.4179890950521,
+      "final_eval_best": -193.8228302001953,
+      "best_seed": 4,
+      "seconds_total": 48.02788635100012,
+      "device": "TPU v5 lite"
+    },
+    "large_pop": {
+      "env": "pendulum",
+      "config": {
+        "env": "pendulum",
+        "pop": 2048,
+        "n_eval": 5,
+        "gens": 400,
+        "sigma": 0.05,
+        "lr": 0.02,
+        "weight_decay": 0.005,
+        "lr_decay": 1.0,
+        "sigma_decay": 1.0,
+        "sigma_min": 0.0,
+        "curriculum_gens": 0,
+        "curriculum_start": 0.1,
+        "hidden": [
+          32,
+          32
+        ],
+        "log_every": 10
+      },
+      "n_seeds": 12,
+      "success_threshold": -200.0,
+      "success_rate": 0.08333333333333333,
+      "final_eval_median": -713.3963623046875,
+      "final_eval_mean": -599.5722872416178,
+      "final_eval_best": -191.50318908691406,
+      "best_seed": 11,
+      "seconds_total": 138.01800316900017,
+      "device": "TPU v5 lite"
+    },
+    "curriculum": {
+      "env": "pendulum",
+      "config": {
+        "env": "pendulum",
+        "pop": 512,
+        "n_eval": 4,
+        "gens": 300,
+        "sigma": 0.05,
+        "lr": 0.02,
+        "weight_decay": 0.005,
+        "lr_decay": 1.0,
+        "sigma_decay": 1.0,
+        "sigma_min": 0.0,
+        "curriculum_gens": 150,
+        "curriculum_start": 0.1,
+        "hidden": [
+          32,
+          32
+        ],
+        "log_every": 10
+      },
+      "n_seeds": 12,
+      "success_threshold": -200.0,
+      "success_rate": 0.0,
+      "final_eval_median": -763.1786804199219,
+      "final_eval_mean": -719.1273498535156,
+      "final_eval_best": -200.228515625,
+      "best_seed": 5,
+      "seconds_total": 48.58047254200005,
+      "device": "TPU v5 lite"
+    }
+  },
+  "best_pendulum_study": "large_pop"
+}

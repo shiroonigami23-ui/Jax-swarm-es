@@ -1,0 +1,31 @@
+{
+  "env": "pendulum",
+  "config": {
+    "env": "pendulum",
+    "pop": 512,
+    "n_eval": 4,
+    "gens": 300,
+    "sigma": 0.05,
+    "lr": 0.02,
+    "weight_decay": 0.005,
+    "lr_decay": 1.0,
+    "sigma_decay": 1.0,
+    "sigma_min": 0.0,
+    "curriculum_gens": 0,
+    "curriculum_start": 0.1,
+    "hidden": [
+      32,
+      32
+    ],
+    "log_every": 10
+  },
+  "n_seeds": 12,
+  "success_threshold": -200.0,
+  "success_rate": 0.08333333333333333,
+  "final_eval_median": -747.1210021972656,
+  "final_eval_mean": -661.4179890950521,
+  "final_eval_best": -193.8228302001953,
+  "best_seed": 4,
+  "seconds_total": 48.02788635100012,
+  "device": "TPU v5 lite"
+}
