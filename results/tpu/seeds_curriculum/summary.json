@@ -26,6 +26,6 @@
   "final_eval_mean": -719.1273498535156,
   "final_eval_best": -200.228515625,
   "best_seed": 5,
-  "seconds_total": 48.58047254200005,
+  "seconds_total": 48.489089632000514,
   "device": "TPU v5 lite"
 }
