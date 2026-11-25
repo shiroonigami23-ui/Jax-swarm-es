@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1] - 2026-11-25
+### Results (TPU v5 lite, free Colab)
+- Throughput peaks at **290M env-steps/s at 8,192 envs**, 19× the T4 peak. It falls to about 37–46M beyond 32k envs, which is still about 2.5–3× the T4. The cliff is probably the per-env parameters no longer fitting on-chip (not profiled).
+- Pendulum, 12 seeds per setting: small population **1/12** solved, large population (2048 × 5) **1/12**, curriculum **0/12**. This confirms on more seeds that ES on the swing-up is bimodal and that population size and the curriculum don't fix it.
+- Drone: 500 generations in 0.6 min. Final return 73.0 with 8.8 targets per episode.
+### Changed
+- The paper's throughput text now reports the TPU peak and the cliff; its limitations were updated.
+
 ## [0.2.0] - 2026-11-25
 ### Added
 - **TPU support.** `colab_run.py --tpu` runs a full study on a free Colab v5e-1 TPU: throughput up to 262,144 envs (compared with CPU and T4), drone training, three 12-seed pendulum studies, renders, the README `TPU-RESULTS` section and a push. One-click notebook: `notebooks/tpu_run.ipynb`.
