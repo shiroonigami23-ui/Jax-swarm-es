@@ -35,6 +35,8 @@ class Config:
     lr_decay: float = 1.0     # lr multiplied by this every generation
     sigma_decay: float = 1.0  # sigma multiplied by this every generation
     sigma_min: float = 0.0    # floor for the decayed sigma
+    curriculum_gens: int = 0  # >0: start episodes easy and reach the full task after this many gens
+    curriculum_start: float = 0.1  # starting difficulty (fraction of the full start range)
     hidden: tuple = field(default=(32, 32))
     seed: int = 0
     log_every: int = 10
@@ -42,9 +44,15 @@ class Config:
 
 
 def make_generation(env, policy, cfg: Config):
-    def evaluate(flat, keys):
-        rets, infos = jax.vmap(lambda k: rollout(env, policy, flat, k))(keys)
+    def evaluate(flat, keys, difficulty=1.0):
+        rets, infos = jax.vmap(lambda k: rollout(env, policy, flat, k, difficulty))(keys)
         return rets.mean(), jax.tree_util.tree_map(jnp.mean, infos)
+
+    def difficulty_at(step):
+        if cfg.curriculum_gens <= 0:
+            return jnp.float32(1.0)
+        frac = jnp.clip(step / cfg.curriculum_gens, 0.0, 1.0)
+        return cfg.curriculum_start + (1.0 - cfg.curriculum_start) * frac
 
     def generation(state: es.ESState, key):
         k_ask, k_eval, k_test = jax.random.split(key, 3)
@@ -55,13 +63,15 @@ def make_generation(env, policy, cfg: Config):
         # Common random numbers: every member sees the same episodes this
         # generation, so ranking compares policies rather than luck.
         eval_keys = jax.random.split(k_eval, cfg.n_eval)
-        fitness, infos = jax.vmap(evaluate, in_axes=(0, None))(population, eval_keys)
+        difficulty = difficulty_at(state.step)
+        fitness, infos = jax.vmap(evaluate, in_axes=(0, None, None))(population, eval_keys, difficulty)
 
         new_state = es.tell(
             state, eps, fitness, sigma, lr, cfg.weight_decay
         )
 
-        # How good is the mean itself, on fresh episodes?
+        # How good is the mean itself, on fresh episodes of the FULL task
+        # (difficulty 1), whatever stage the curriculum is at.
         test_ret, test_info = evaluate(
             new_state.mean, jax.random.split(k_test, cfg.n_eval)
         )
@@ -71,6 +81,7 @@ def make_generation(env, policy, cfg: Config):
             "mean_policy_return": test_ret,
             "lr": lr,
             "sigma": sigma,
+            "difficulty": difficulty,
         }
         for name, value in test_info.items():
             metrics[f"mean_policy_{name}"] = value
@@ -171,6 +182,9 @@ def parse_args(argv=None) -> Config:
     p.add_argument("--lr-decay", type=float, default=defaults.lr_decay)
     p.add_argument("--sigma-decay", type=float, default=defaults.sigma_decay)
     p.add_argument("--sigma-min", type=float, default=defaults.sigma_min)
+    p.add_argument("--curriculum-gens", type=int, default=defaults.curriculum_gens,
+                   help="start easy (pendulum near upright) and reach the full task after N gens")
+    p.add_argument("--curriculum-start", type=float, default=defaults.curriculum_start)
     p.add_argument("--hidden", type=int, nargs="+", default=list(defaults.hidden))
     p.add_argument("--seed", type=int, default=defaults.seed)
     p.add_argument("--log-every", type=int, default=defaults.log_every)
@@ -179,7 +193,8 @@ def parse_args(argv=None) -> Config:
     return Config(
         env=a.env, pop=a.pop, n_eval=a.n_eval, gens=a.gens, sigma=a.sigma,
         lr=a.lr, weight_decay=a.weight_decay, lr_decay=a.lr_decay,
-        sigma_decay=a.sigma_decay, sigma_min=a.sigma_min, hidden=tuple(a.hidden),
+        sigma_decay=a.sigma_decay, sigma_min=a.sigma_min, curriculum_gens=a.curriculum_gens,
+        curriculum_start=a.curriculum_start, hidden=tuple(a.hidden),
         seed=a.seed, log_every=a.log_every, out=a.out,
     )
 

@@ -13,10 +13,13 @@ def _freeze(alive, new, old):
     return jax.tree_util.tree_map(lambda n, o: jnp.where(alive > 0, n, o), new, old)
 
 
-def rollout(env, policy, flat_params, key):
-    """Return (episode_return, episode_info) for one episode."""
+def rollout(env, policy, flat_params, key, difficulty=1.0):
+    """Return (episode_return, episode_info) for one episode.
+
+    `difficulty` is passed to env.reset (curriculum); 1.0 is the full task.
+    """
     k_reset, k_steps = jax.random.split(key)
-    state = env.reset(k_reset)
+    state = env.reset(k_reset, difficulty)
 
     def body(carry, k):
         state, ret, alive = carry

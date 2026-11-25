@@ -64,3 +64,12 @@ def test_train_smoke_drone():
     cfg = Config(env="drone", pop=8, n_eval=2, gens=2, log_every=2, hidden=(8,))
     _, _, history = train(cfg, verbose=False)
     assert "mean_policy_hits" in history[0]
+
+
+def test_seed_study_smoke(tmp_path):
+    from swarm_es.seeds import run_seeds
+    from swarm_es.train import Config
+    cfg = Config(env="pendulum", pop=16, n_eval=2, gens=4, log_every=2)
+    rows, summary = run_seeds(cfg, 2, str(tmp_path), score_window=2, final_episodes=4, verbose=False)
+    assert len(rows) == 2 and 0.0 <= summary["success_rate"] <= 1.0
+    assert (tmp_path / "best" / "pendulum" / "params.npz").exists()

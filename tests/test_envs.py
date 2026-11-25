@@ -68,3 +68,23 @@ def test_vmapped_rollouts_match_single():
     assert batched.shape == (4,)
     assert info["hits"].shape == (4,)
     assert jnp.allclose(jnp.stack(single), batched, rtol=1e-3, atol=1e-2)
+
+
+def test_pendulum_difficulty_scales_start_angle():
+    from swarm_es.envs import Pendulum
+    env = Pendulum()
+    keys = jax.random.split(jax.random.key(0), 256)
+    easy = jax.vmap(lambda k: env.reset(k, 0.1))(keys)
+    full = jax.vmap(lambda k: env.reset(k, 1.0))(keys)
+    assert float(jnp.abs(easy.theta).max()) <= 0.1 * jnp.pi + 1e-6
+    assert float(jnp.abs(full.theta).max()) > 0.5 * jnp.pi
+
+
+def test_pendulum_is_solvable_by_hand_controller():
+    # Guards against env bugs: a non-learned energy + PD controller must reach the solved range.
+    from swarm_es.baselines import episode_return
+    from swarm_es.envs import Pendulum
+    env = Pendulum()
+    keys = jax.random.split(jax.random.key(1), 32)
+    rets = jax.jit(jax.vmap(lambda k: episode_return(env, k)))(keys)
+    assert float(rets.mean()) > -250

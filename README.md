@@ -1,5 +1,15 @@
 # JAX Swarm ES
 
+[![CI](https://github.com/shiroonigami23-ui/jax-swarm-es/actions/workflows/ci.yml/badge.svg)](https://github.com/shiroonigami23-ui/jax-swarm-es/actions/workflows/ci.yml)
+[![Paper](https://github.com/shiroonigami23-ui/jax-swarm-es/actions/workflows/paper.yml/badge.svg)](https://shiroonigami23-ui.github.io/jax-swarm-es/)
+![JAX](https://img.shields.io/badge/JAX-jit%20%7C%20vmap%20%7C%20scan-6250d6)
+![Python](https://img.shields.io/badge/python-3.10%2B-2a78d6)
+![Hardware](https://img.shields.io/badge/runs%20on-CPU%20%7C%20GPU%20%7C%20TPU-1baf7a)
+![Peak](https://img.shields.io/badge/T4%20peak-15.1M%20env--steps%2Fs-eb6834)
+![License](https://img.shields.io/badge/license-MIT-52514e)
+
+📄 **Working paper:** [read online](https://shiroonigami23-ui.github.io/jax-swarm-es/) · [PDF](paper/swarm_es_paper.pdf) · 🧪 **TPU run:** [`notebooks/tpu_run.ipynb`](notebooks/tpu_run.ipynb) · 🗒️ [Changelog](CHANGELOG.md)
+
 Evolution strategies (ES) over thousands of parallel environments, written in pure **JAX**. A population of neural-network policies is dropped into thousands of copies of a physics environment at once, and the policies that do well pull the search distribution toward themselves. No backprop through the environment, no replay buffer, no value function.
 
 The environment is a pure function, one episode is a `lax.scan`, and `jax.vmap` turns one episode into a whole generation without touching the environment code.
@@ -15,7 +25,7 @@ All numbers below come from the files in [`results/`](results/). The tables dire
 
 **Drone.** The policy goes from crashing to reaching about 9 waypoints per 10-second episode. Most of the learning happens in the first ~40 generations, then it plateaus around a return of 75.
 
-**Pendulum.** It plateaued around −770, well short of the ≈ −150 that counts as solved. It most likely settled into a local optimum (spinning or partial swings) instead of balancing upright. Next things to try: more generations and a larger `--sigma` (e.g. 0.1).
+**Pendulum.** Single runs plateau around −760, well short of the ≈ −150 that counts as solved. That is **not an environment bug**: a hand-written energy-pumping + PD controller scores **−139.5** on 100 episodes (`python -m swarm_es.baselines`). It is a **seed-dependent local optimum**: with identical settings, some seeds swing up and balance and most stay stuck spinning near the bottom. See the seed study below and the [working paper](https://shiroonigami23-ui.github.io/jax-swarm-es/).
 
 ### Training curves
 
@@ -73,6 +83,27 @@ Pendulum status: **improved, still not solved (solved ≈ −150)**.
 | ![pendulum gpu 0](results/gpu/pendulum/episode_0.gif) | ![pendulum gpu 1](results/gpu/pendulum/episode_1.gif) | ![pendulum gpu 2](results/gpu/pendulum/episode_2.gif) |
 <!-- GPU-RESULTS:END -->
 
+### Pendulum seed study (CPU)
+
+Same config trained from 8 seeds (`python -m swarm_es.seeds`, pop 512 × 4 episodes, 300 gens). A seed counts as solved if its final policy beats −200 on 100 fresh episodes.
+
+| Study | Seeds solved | Median final | Best final |
+| :--- | :---: | ---: | ---: |
+| Plain ES | **1 / 8** | −752.0 | −191.3 |
+| + start-state curriculum (`--curriculum-gens 150`) | **0 / 8** | −759.7 | −207.8 |
+
+| Plain ES: 8 seeds | With curriculum: 8 seeds |
+| :---: | :---: |
+| ![seeds](results/cpu_seeds/small_pop/curves.png) | ![seeds curriculum](results/cpu_seeds/curriculum/curves.png) |
+
+The outcome is mostly decided by the seed, not by the hyperparameters, so a sweep from a single seed (below) can't rank configs reliably. The TPU study repeats this with 12 seeds, three setups and a larger population.
+
+<!-- TPU-RESULTS:START -->
+### TPU results
+
+Not run yet. Open [`notebooks/tpu_run.ipynb`](notebooks/tpu_run.ipynb) in Colab on a **v5e-1 TPU** runtime and choose *Run all*. It fills this section in and pushes the results.
+<!-- TPU-RESULTS:END -->
+
 <!-- SWEEP-RESULTS:START -->
 ### Hyperparameter sweep
 
@@ -91,9 +122,9 @@ An original planar quadrotor environment. Two rotors with independent thrust, so
 | :---: | :---: | :---: | :---: | :---: |
 | ![Drone Ep 0](results/drone/episode_0.gif) | ![Drone Ep 1](results/drone/episode_1.gif) | ![Drone Ep 2](results/drone/episode_2.gif) | ![Drone Ep 3](results/drone/episode_3.gif) | ![Drone Ep 4](results/drone/episode_4.gif) |
 
-### Pendulum swing-up (work in progress)
+### Pendulum swing-up
 
-Same dynamics and cost as Gym's `Pendulum-v1`, so the returns are comparable (random ≈ −1200, solved ≈ −150). These GIFs show the current, **unsolved** policy.
+Same dynamics and cost as Gym's `Pendulum-v1`, so the returns are comparable (random ≈ −1200, solved ≈ −150). These GIFs show an early, **unsolved** run. The TPU study renders the best seed.
 
 | Episode 0 | Episode 1 | Episode 2 | Episode 3 | Episode 4 |
 | :---: | :---: | :---: | :---: | :---: |
@@ -142,6 +173,9 @@ Ten generations at a time are wrapped in a single `lax.scan`, so Python only wak
 | Optimizer | `swarm_es/es.py` | antithetic sampling, centered ranks, Adam |
 | Training | `swarm_es/train.py` | `vmap(vmap(rollout))` + `lax.scan` over generations |
 | Benchmark | `swarm_es/bench.py` | env steps/s as the number of parallel envs grows |
+| Seed study | `swarm_es/seeds.py` | same config from N seeds: success rate, median, best run |
+| Baseline | `swarm_es/baselines.py` | hand-written pendulum controller, proves the task is solvable |
+| Colab runner | `colab_run.py` | GPU run, `--sweep`, `--tpu` study; updates this README and pushes |
 
 ---
 
@@ -177,7 +211,19 @@ python -m swarm_es.train --env pendulum --pop 1024 --gens 400 --sigma 0.1
 python -m swarm_es.render --run runs/drone --episodes 5          # GIFs
 python -m swarm_es.bench --env drone --sizes 1 64 1024 8192 32768
 python -m swarm_es.sweep --env pendulum --lrs 0.005 0.01 0.02 0.05 --sigmas 0.03 0.1 --lr-decays 1.0 0.995
+python -m swarm_es.seeds --env pendulum --seeds 8 --pop 512 --n-eval 4 --gens 300   # success rate over seeds
+python -m swarm_es.baselines --episodes 100                                          # hand-written controller
 ```
+
+### Run on a free Colab TPU
+
+Open [`notebooks/tpu_run.ipynb`](notebooks/tpu_run.ipynb) in Colab and follow these steps:
+
+1. Choose *Runtime → Change runtime type →* **v5e-1 TPU**.
+2. Add a `GITHUB_TOKEN` in Colab Secrets so the results can be pushed.
+3. Choose *Run all*.
+
+It benchmarks up to 262,144 parallel envs, trains the drone, runs three 12-seed pendulum studies, renders the best policies, updates the `TPU-RESULTS` section of this README and pushes everything to `results/tpu/`. You can also run it from any notebook cell with `%run colab_run.py --tpu`.
 
 Each training run writes `params.npz`, `config.json`, `history.csv` and `learning_curve.png` to `runs/<env>/`. To load trained parameters:
 
@@ -199,6 +245,8 @@ params = np.load("runs/drone/params.npz")["mean"]   # flat parameter vector
 | `--weight-decay` | L2 pull on the mean | 0.005 |
 | `--lr-decay` | multiply lr by this every generation | 1.0 (off) |
 | `--sigma-decay`, `--sigma-min` | multiply sigma by this every generation, never below the min | 1.0, 0.0 |
+| `--curriculum-gens` | pendulum: start near upright and reach the full task after N gens (0 = off) | 0 |
+| `--curriculum-start` | starting difficulty (fraction of the full start range) | 0.1 |
 | `--hidden` | hidden layer sizes | `32 32` |
 | `--log-every` | generations per jitted chunk / log line | 10 |
 | `--seed` | random seed | 0 |
@@ -231,7 +279,11 @@ The results above used the defaults, except `--gens 500` for the drone and `--po
 - Wierstra et al., *Natural Evolution Strategies*, JMLR 2014.
 - Freeman et al., *Brax: A Differentiable Physics Engine for Large Scale Rigid Body Simulation*, 2021.
 - Lange, *gymnax: A JAX-based Reinforcement Learning Environment Library*, 2022.
+- Henderson et al., *Deep Reinforcement Learning that Matters*, AAAI 2018 (why results are reported over seeds).
+- Åström & Furuta, *Swinging up a pendulum by energy control*, Automatica 2000 (the baseline controller).
+
+Full list in the [working paper](paper/references.bib).
 
 ## License
 
-MIT
+[MIT](LICENSE) · Version history in [CHANGELOG.md](CHANGELOG.md)

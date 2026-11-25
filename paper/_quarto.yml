@@ -1,0 +1,29 @@
+project:
+  type: manuscript
+  render:
+    - index.qmd
+
+format:
+  html:
+    toc: true
+    notebook-links: false
+    notebook-view: false
+  pdf:
+    documentclass: article
+    notebook-links: false
+    notebook-view: false
+    pdf-engine: pdflatex
+    geometry: margin=1in
+    include-in-header:
+      text: |
+        \usepackage{newunicodechar}
+        \newunicodechar{−}{\ensuremath{-}}
+        \newunicodechar{≈}{\ensuremath{\approx}}
+        \newunicodechar{×}{\ensuremath{\times}}
+        \newunicodechar{±}{\ensuremath{\pm}}
+        \newunicodechar{–}{--}
+        \newunicodechar{—}{---}
+        \newunicodechar{≤}{\ensuremath{\leq}}
+        \newunicodechar{°}{\ensuremath{^\circ}}
+        \newunicodechar{·}{\ensuremath{\cdot}}
+        \newunicodechar{ö}{\"o}

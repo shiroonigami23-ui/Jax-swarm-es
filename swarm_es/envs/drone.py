@@ -58,7 +58,8 @@ class Drone:
         y = jax.random.uniform(ky, (), minval=1.0, maxval=6.0)
         return jnp.stack([x, y])
 
-    def reset(self, key: jax.Array) -> DroneState:
+    def reset(self, key: jax.Array, difficulty=1.0) -> DroneState:
+        del difficulty  # no curriculum for the drone (accepted for a common interface)
         k_pos, k_target = jax.random.split(key)
         pos = jnp.array([0.0, 2.0]) + jax.random.uniform(
             k_pos, (2,), minval=-0.5, maxval=0.5

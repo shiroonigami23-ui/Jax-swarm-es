@@ -1,11 +1,14 @@
-"""One-shot Colab runner: GPU install -> tests -> benchmarks -> training ->
+"""One-shot Colab runner: install -> tests -> benchmarks -> training ->
 renders -> report -> README update -> git push.
 
-In a fresh Colab notebook (Runtime -> Change runtime type -> T4 GPU):
+In a fresh Colab notebook:
 
     !git clone -q https://github.com/shiroonigami23-ui/jax-swarm-es /content/jax-swarm-es
-    %run /content/jax-swarm-es/colab_run.py            # full run
-    %run /content/jax-swarm-es/colab_run.py --sweep    # hyperparameter sweep only
+    %run /content/jax-swarm-es/colab_run.py            # full run (T4 GPU runtime)
+    %run /content/jax-swarm-es/colab_run.py --sweep    # hyperparameter sweep only (GPU)
+    %run /content/jax-swarm-es/colab_run.py --tpu      # TPU study (v5e-1 TPU runtime)
+
+The easiest way to do the TPU run is notebooks/tpu_run.ipynb.
 
 The push needs a GitHub token stored in Colab Secrets (key icon) as
 GITHUB_TOKEN or GitHub, with "Notebook access" switched on. A fine-grained
@@ -38,6 +41,17 @@ SWEEP_ARGS = ["--env", "pendulum", "--pop", "1024", "--n-eval", "5", "--gens", "
               "--lr-decays", "1.0", "0.995"]
 TUNED_GENS = {"pendulum": "400", "drone": "500"}
 ALLOW_CPU = False   # set True to run anyway without a GPU (slow)
+
+# ---- TPU study (colab_run.py --tpu)
+TPU_OUT = Path("results/tpu")
+TPU_BENCH_SIZES = ["1", "64", "1024", "8192", "32768", "65536", "131072", "262144"]
+TPU_SEEDS = "12"
+# Each study trains the pendulum from TPU_SEEDS seeds with one config and reports how many solve it.
+TPU_STUDIES = {
+    "small_pop": ["--pop", "512", "--n-eval", "4", "--gens", "300"],
+    "large_pop": ["--pop", "2048", "--n-eval", "5", "--gens", "400"],
+    "curriculum": ["--pop", "512", "--n-eval", "4", "--gens", "300", "--curriculum-gens", "150"],
+}
 
 
 # ---------------------------------------------------------------- helpers
@@ -254,16 +268,18 @@ Pendulum, {len(sweep_rows)} configs, each trained from the same seed with `{' '.
 
 # ---------------------------------------------------------------- main
 
-def setup():
-    """Clone/pull, install CUDA JAX, refuse to continue without a GPU, run tests."""
+def setup(want="gpu"):
+    """Clone/pull, install JAX for the accelerator, refuse to continue without it, run tests."""
     banner("Setup: repo")
     if not (WORKDIR / ".git").exists():
         run(["git", "clone", f"https://github.com/{REPO}", str(WORKDIR)])
     run(["git", "pull", "--ff-only"], cwd=WORKDIR)
     os.chdir(WORKDIR)
 
-    banner("Setup: install JAX (CUDA) + package")
-    if shutil.which("nvidia-smi") is not None:
+    banner(f"Setup: install JAX ({want.upper()}) + package")
+    if want == "tpu":
+        run([sys.executable, "-m", "pip", "install", "-q", "-U", "jax[tpu]"])
+    elif shutil.which("nvidia-smi") is not None:
         run([sys.executable, "-m", "pip", "install", "-q", "-U", "jax[cuda12]"])
     run([sys.executable, "-m", "pip", "install", "-q", "-e", ".[dev]"])
 
@@ -271,9 +287,10 @@ def setup():
                        "import jax; d=jax.devices()[0]; print(d.platform, '|', d.device_kind)"])
     print("JAX device:", devices)
     platform, _, device_name = devices.partition(" | ")
-    if platform != "gpu" and not ALLOW_CPU:
+    if platform != want and not ALLOW_CPU:
+        runtime = "v5e-1 TPU" if want == "tpu" else "T4 GPU"
         raise SystemExit(
-            "JAX does not see a GPU. Set Runtime -> Change runtime type -> T4 GPU, "
+            f"JAX does not see a {want.upper()}. Set Runtime -> Change runtime type -> {runtime}, "
             "then run again (or set ALLOW_CPU = True to run on CPU anyway)."
         )
 
@@ -388,8 +405,144 @@ def sweep_run():
     print(f"Total {(time.perf_counter() - t_start) / 60:.1f} min")
 
 
+# ---------------------------------------------------------------- TPU study
+
+def plot_throughput_all(series, path):
+    """series: list of (label, {envs: steps_per_sec}, style)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(7.5, 4.4))
+    for label, data, style in series:
+        if data:
+            xs = sorted(data)
+            ax.loglog(xs, [data[x] for x in xs], style, label=label)
+    ax.set_xlabel("parallel envs")
+    ax.set_ylabel("env steps / second")
+    ax.set_title("Drone env throughput: CPU vs T4 GPU vs TPU")
+    ax.grid(alpha=0.3, which="both")
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+
+
+def load_bench(path):
+    path = Path(path)
+    if not path.exists():
+        return {}
+    return {int(r["envs"]): float(r["steps_per_sec"]) for r in read_csv(path)}
+
+
+def build_tpu_section(device_name, info, n_episodes):
+    date = dt.date.today().isoformat()
+    tpu, gpu, cpu = info["bench"]["tpu"], info["bench"]["gpu"], info["bench"]["cpu"]
+    rows = ["| Parallel envs | TPU env-steps/s | T4 GPU env-steps/s | CPU env-steps/s | TPU / CPU |",
+            "| ---: | ---: | ---: | ---: | ---: |"]
+    for n in sorted(map(int, tpu)):
+        t, g, c = tpu[str(n)], gpu.get(str(n)), cpu.get(str(n))
+        rows.append(f"| {n:,} | {t:,.0f} | {f'{g:,.0f}' if g else '–'} | {f'{c:,.0f}' if c else '–'} | "
+                    f"{f'{t / c:.1f}x' if c else '–'} |")
+    study_rows = ["| Study | Config | Seeds solved | Median final return | Best final return | Time |",
+                  "| :--- | :--- | :---: | ---: | ---: | ---: |"]
+    for name, s in info["studies"].items():
+        study_rows.append(
+            f"| {name} | `{' '.join(TPU_STUDIES[name])}` | {round(s['success_rate'] * s['n_seeds'])} / {s['n_seeds']} | "
+            f"{s['final_eval_median']:.1f} | {s['final_eval_best']:.1f} | {s['seconds_total'] / 60:.1f} min |")
+    d = info["drone"]
+    header = " | ".join(f"Episode {i}" for i in range(n_episodes))
+    align = " | ".join(":---:" for _ in range(n_episodes))
+    gifs_p = " | ".join(f"![tpu pendulum {i}](results/tpu/pendulum_best/episode_{i}.gif)" for i in range(n_episodes))
+    gifs_d = " | ".join(f"![tpu drone {i}](results/tpu/drone/episode_{i}.gif)" for i in range(n_episodes))
+    peak = max(tpu.items(), key=lambda kv: kv[1])
+    return f"""### TPU results ({device_name})
+
+_Generated by `colab_run.py --tpu` on {date}. Raw data in [`results/tpu/`](results/tpu/)._
+
+**Throughput.** Peak TPU throughput was **{peak[1]:,.0f} env-steps/s at {int(peak[0]):,} parallel envs**.
+
+{chr(10).join(rows)}
+
+![throughput CPU vs GPU vs TPU](results/tpu/throughput_all.png)
+
+**Pendulum: how often does a config work?** Each study trains from {TPU_SEEDS} seeds. A seed counts as solved if its
+final policy scores better than −200 on 100 fresh episodes.
+
+{chr(10).join(study_rows)}
+
+| Small population | Large population | Curriculum |
+| :---: | :---: | :---: |
+| ![small](results/tpu/seeds_small_pop/curves.png) | ![large](results/tpu/seeds_large_pop/curves.png) | ![curriculum](results/tpu/seeds_curriculum/curves.png) |
+
+**Drone** (`{' '.join(DRONE_ARGS[2:])}`): final return {d['final']:.1f}, {d['final_hits']:.1f} targets
+(last-10 avg {d['last10_avg']:.1f}, {d['last10_hits_avg']:.1f} targets), {info['drone_time'] / 60:.1f} min.
+
+| {header} |
+| {align} |
+| {gifs_p} |
+| {gifs_d} |
+"""
+
+
+def tpu_run():
+    t_start = time.perf_counter()
+    platform, device_name = setup("tpu")
+    TPU_OUT.mkdir(parents=True, exist_ok=True)
+
+    banner("Throughput benchmark (TPU)")
+    bench_dir = TPU_OUT / "bench"
+    for env in ("drone", "pendulum"):
+        run([sys.executable, "-m", "swarm_es.bench", "--env", env,
+             "--sizes", *TPU_BENCH_SIZES, "--out", str(bench_dir)])
+
+    banner("Train drone (TPU)")
+    _, drone_time = run([sys.executable, "-m", "swarm_es.train", *DRONE_ARGS, "--out", str(TPU_OUT)])
+    run([sys.executable, "-m", "swarm_es.render", "--run", str(TPU_OUT / "drone"),
+         "--episodes", RENDER_EPISODES])
+
+    studies = {}
+    for name, args in TPU_STUDIES.items():
+        banner(f"Pendulum seed study: {name}")
+        out = TPU_OUT / f"seeds_{name}"
+        run([sys.executable, "-m", "swarm_es.seeds", "--env", "pendulum", "--seeds", TPU_SEEDS,
+             *args, "--out", str(out)])
+        studies[name] = json.loads((out / "summary.json").read_text())
+        shutil.rmtree(out / "runs", ignore_errors=True)  # keep the repo small: summary, csv, curves, best run
+
+    best_name = max(studies, key=lambda k: studies[k]["final_eval_best"])
+    best_dir = TPU_OUT / "pendulum_best"
+    if best_dir.exists():
+        shutil.rmtree(best_dir)
+    shutil.copytree(TPU_OUT / f"seeds_{best_name}" / "best" / "pendulum", best_dir)
+    run([sys.executable, "-m", "swarm_es.render", "--run", str(best_dir), "--episodes", RENDER_EPISODES])
+
+    tpu = load_bench(bench_dir / f"drone_{platform}.csv")
+    gpu = load_bench("results/gpu/bench/drone_gpu.csv")
+    cpu = load_bench("results/bench/drone_cpu.csv")
+    plot_throughput_all([("CPU (Colab)", cpu, "s--"), ("T4 GPU", gpu, "o-"), (f"TPU ({device_name})", tpu, "^-")],
+                        TPU_OUT / "throughput_all.png")
+    info = {
+        "device": device_name,
+        "bench": {"tpu": {str(k): v for k, v in tpu.items()}, "gpu": {str(k): v for k, v in gpu.items()},
+                  "cpu": {str(k): v for k, v in cpu.items()}},
+        "drone": training_summary(TPU_OUT / "drone" / "history.csv"),
+        "drone_time": drone_time,
+        "studies": studies,
+        "best_pendulum_study": best_name,
+    }
+    (TPU_OUT / "summary.json").write_text(json.dumps(info, indent=2))
+    section = build_tpu_section(device_name, info, int(RENDER_EPISODES))
+    update_readme(Path("README.md"), section, marker="TPU-RESULTS")
+    print(section)
+    push(["README.md", TPU_OUT], f"Add TPU results ({device_name}): throughput, drone, pendulum seed studies")
+    print(f"Total {(time.perf_counter() - t_start) / 60:.1f} min")
+
+
 if __name__ == "__main__":
-    if "--sweep" in sys.argv[1:]:
+    if "--tpu" in sys.argv[1:]:
+        tpu_run()
+    elif "--sweep" in sys.argv[1:]:
         sweep_run()
     else:
         full_run()

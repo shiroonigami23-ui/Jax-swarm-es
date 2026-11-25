@@ -1,0 +1,37 @@
+name: Paper
+
+# Renders the working paper (paper/index.qmd) from the files in results/ and publishes it to GitHub Pages:
+# https://shiroonigami23-ui.github.io/jax-swarm-es/
+on:
+  push:
+    branches: [main]
+    paths:
+      - "paper/**"
+      - "results/**"
+      - ".github/workflows/paper.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: paper
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install jupyter matplotlib
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          tinytex: true
+      - uses: quarto-dev/quarto-actions/publish@v2
+        with:
+          target: gh-pages
+          path: paper
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

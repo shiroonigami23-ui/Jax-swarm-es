@@ -1,0 +1,21 @@
+{
+  "env": "pendulum",
+  "pop": 512,
+  "n_eval": 4,
+  "gens": 300,
+  "sigma": 0.05,
+  "lr": 0.02,
+  "weight_decay": 0.005,
+  "lr_decay": 1.0,
+  "sigma_decay": 1.0,
+  "sigma_min": 0.0,
+  "curriculum_gens": 0,
+  "curriculum_start": 0.1,
+  "hidden": [
+    32,
+    32
+  ],
+  "seed": 4,
+  "log_every": 10,
+  "out": "/tmp/seeds_base/runs/seed4"
+}

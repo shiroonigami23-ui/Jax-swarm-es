@@ -4,3 +4,7 @@ __pycache__/
 runs/
 ci-runs/
 .venv/
+paper/_manuscript/
+paper/.quarto/
+paper/*.ipynb
+paper/index-preview.html

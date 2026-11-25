@@ -28,9 +28,14 @@ class Pendulum:
     max_speed = 8.0
     max_torque = 2.0
 
-    def reset(self, key: jax.Array) -> PendulumState:
+    def reset(self, key: jax.Array, difficulty=1.0) -> PendulumState:
+        """Random start. `difficulty` in (0, 1] scales the start range around upright.
+
+        difficulty = 1 is Gym's Pendulum-v1 (any angle). Smaller values start the pole
+        closer to upright, which is what the training curriculum uses early on.
+        """
         k1, k2 = jax.random.split(key)
-        theta = jax.random.uniform(k1, (), minval=-jnp.pi, maxval=jnp.pi)
+        theta = jax.random.uniform(k1, (), minval=-jnp.pi, maxval=jnp.pi) * difficulty
         theta_dot = jax.random.uniform(k2, (), minval=-1.0, maxval=1.0)
         return PendulumState(theta, theta_dot, jnp.int32(0))
 
