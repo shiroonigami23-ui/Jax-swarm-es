@@ -337,7 +337,7 @@
 <span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>peak_cpu <span class="op">=</span> <span class="bu">max</span>(cpu.items(), key<span class="op">=</span><span class="kw">lambda</span> kv: kv[<span class="dv">1</span>])</span>
 <span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> gsum[<span class="st">"drone"</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div></div>
-<div id="3bb110d2" class="cell markdown">
+<div id="8add8490" class="cell markdown">
 <section id="introduction" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">1</span> Introduction</h2>
 <p>Evolution strategies optimise a policy by perturbing its parameters, scoring each perturbed copy on whole episodes and moving the parameters towards the copies that did well <span class="citation" data-cites="wierstra2014 salimans2017">(<a href="#ref-wierstra2014" role="doc-biblioref">Wierstra et al. 2014</a>; <a href="#ref-salimans2017" role="doc-biblioref">Salimans et al. 2017</a>)</span>. ES needs no gradient through the environment, no value function and no replay buffer. Its cost is almost entirely environment simulation, and that simulation is parallel across the population. JAX <span class="citation" data-cites="jax2018">(<a href="#ref-jax2018" role="doc-biblioref">Bradbury et al. 2018</a>)</span> makes this parallelism cheap to write: if the environment is a pure function, <code>jax.vmap</code> turns one episode into thousands without changing the environment code. The same idea underlies JAX environment and ES libraries such as Brax <span class="citation" data-cites="freeman2021brax">(<a href="#ref-freeman2021brax" role="doc-biblioref">Freeman et al. 2021</a>)</span>, gymnax <span class="citation" data-cites="lange2022gymnax">(<a href="#ref-lange2022gymnax" role="doc-biblioref">Lange 2022</a>)</span> and evosax <span class="citation" data-cites="lange2023evosax">(<a href="#ref-lange2023evosax" role="doc-biblioref">Lange 2023</a>)</span>.</p>
@@ -394,7 +394,7 @@ g = \frac{1}{n\sigma}\sum_{i=1}^{n} u_i\,\epsilon_i
 <div id="fig-throughput" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-throughput-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca" class="">
-<a href="index_files/figure-html/fig-throughput-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="Figure&nbsp;1: Drone environment throughput against the number of parallel environments, one 500-step episode per environment."><img src="index_files/figure-html/fig-throughput-output-1.png" width="613" height="354" class="figure-img"></a>
+<a href="index_files/figure-html/fig-throughput-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="Figure&nbsp;1: Drone environment throughput against the number of parallel environments, one 500-step episode per environment."><img src="index_files/figure-html/fig-throughput-output-1.png" width="614" height="354" class="figure-img"></a>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-throughput-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;1: Drone environment throughput against the number of parallel environments, one 500-step episode per environment.
@@ -403,7 +403,7 @@ Figure&nbsp;1: Drone environment throughput against the number of parallel envir
 </div>
 </div>
 </div></div>
-<div class="cell-container"><div class="cell-decorator"><pre>In [3]:</pre></div><div id="c805e337" class="cell" data-execution_count="3">
+<div class="cell-container"><div class="cell-decorator"><pre>In [3]:</pre></div><div id="e5330772" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>n_big <span class="op">=</span> <span class="bu">max</span>(<span class="bu">set</span>(cpu) <span class="op">&amp;</span> <span class="bu">set</span>(gpu))</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>Markdown(<span class="ss">f"On the CPU, throughput peaks at </span><span class="sc">{</span>peak_cpu[<span class="dv">1</span>]<span class="op">/</span><span class="fl">1e3</span><span class="sc">:,.0f}</span><span class="ss">k steps/s with </span><span class="sc">{</span>peak_cpu[<span class="dv">0</span>]<span class="sc">:,}</span><span class="ss"> environments and then falls as the batch outgrows the cache. "</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>         <span class="ss">f"On the T4 it keeps rising to </span><span class="sc">{</span>peak_gpu[<span class="dv">1</span>]<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss">M steps/s at </span><span class="sc">{</span>peak_gpu[<span class="dv">0</span>]<span class="sc">:,}</span><span class="ss"> environments, "</span></span>
@@ -412,15 +412,15 @@ Figure&nbsp;1: Drone environment throughput against the number of parallel envir
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>         <span class="op">+</span> (<span class="ss">f"On the TPU (</span><span class="sc">{</span>tpu_summary[<span class="st">'device'</span>]<span class="sc">}</span><span class="ss">) the peak is </span><span class="sc">{</span><span class="bu">max</span>(tpu.values())<span class="op">/</span><span class="fl">1e6</span><span class="sc">:.1f}</span><span class="ss">M steps/s at </span><span class="sc">{</span><span class="bu">max</span>(tpu, key<span class="op">=</span>tpu.get)<span class="sc">:,}</span><span class="ss"> environments."</span></span>
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> tpu <span class="cf">else</span> <span class="st">"TPU numbers will appear here once `notebooks/tpu_run.ipynb` has been run."</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display cell-output-markdown" data-execution_count="3">
-<p>On the CPU, throughput peaks at 708k steps/s with 1,024 environments and then falls as the batch outgrows the cache. On the T4 it keeps rising to 15.1M steps/s at 65,536 environments, 34× the CPU at the same size (<a href="#fig-throughput" class="quarto-xref">Figure&nbsp;1</a>). With a single environment the GPU is slower than the CPU (25k vs 94k steps/s), because launch overhead dominates. TPU numbers will appear here once <code>notebooks/tpu_run.ipynb</code> has been run.</p>
+<p>On the CPU, throughput peaks at 708k steps/s with 1,024 environments and then falls as the batch outgrows the cache. On the T4 it keeps rising to 15.1M steps/s at 65,536 environments, 34× the CPU at the same size (<a href="#fig-throughput" class="quarto-xref">Figure&nbsp;1</a>). With a single environment the GPU is slower than the CPU (25k vs 94k steps/s), because launch overhead dominates. On the TPU (TPU v5 lite) the peak is 289.7M steps/s at 8,192 environments.</p>
 </div>
 </div></div>
-<div id="3df2f35e" class="cell markdown">
+<div id="276d6abd" class="cell markdown">
 <section id="drone" class="level3" data-number="3.2">
 <h3 data-number="3.2" class="anchored" data-anchor-id="drone"><span class="header-section-number">3.2</span> Drone</h3>
 </section>
 </div>
-<div class="cell-container"><div class="cell-decorator"><pre>In [4]:</pre></div><div id="603e90fb" class="cell" data-execution_count="4">
+<div class="cell-container"><div class="cell-decorator"><pre>In [4]:</pre></div><div id="ab2e13e8" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>Markdown(<span class="ss">f"With $n=2048$, $k=5$ (10,240 environments per generation) and 500 generations on the T4, the drone goes from a return of </span><span class="sc">{</span>d[<span class="st">'start'</span>]<span class="sc">:.1f}</span><span class="ss"> "</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>         <span class="ss">f"(crashing, no targets) to </span><span class="sc">{</span>d[<span class="st">'final'</span>]<span class="sc">:.1f}</span><span class="ss"> with </span><span class="sc">{</span>d[<span class="st">'final_hits'</span>]<span class="sc">:.1f}</span><span class="ss"> targets per 10-second episode "</span></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>         <span class="ss">f"(average of the last 10 generations: </span><span class="sc">{</span>d[<span class="st">'last10_avg'</span>]<span class="sc">:.1f}</span><span class="ss">, </span><span class="sc">{</span>d[<span class="st">'last10_hits_avg'</span>]<span class="sc">:.1f}</span><span class="ss"> targets). "</span></span>
@@ -430,12 +430,12 @@ Figure&nbsp;1: Drone environment throughput against the number of parallel envir
 <p>With <span class="math inline">\(n=2048\)</span>, <span class="math inline">\(k=5\)</span> (10,240 environments per generation) and 500 generations on the T4, the drone goes from a return of -4.1 (crashing, no targets) to 77.0 with 9.2 targets per 10-second episode (average of the last 10 generations: 75.1, 8.7 targets). The best generation was 468 (86.6). The whole run took 1.5 minutes. Most of the gain comes in the first ~40 generations; after that the return plateaus.</p>
 </div>
 </div></div>
-<div id="66acd188" class="cell markdown">
+<div id="36940799" class="cell markdown">
 <section id="the-pendulum-is-solvable-but-es-is-bimodal" class="level3" data-number="3.3">
 <h3 data-number="3.3" class="anchored" data-anchor-id="the-pendulum-is-solvable-but-es-is-bimodal"><span class="header-section-number">3.3</span> The pendulum is solvable, but ES is bimodal</h3>
 </section>
 </div>
-<div class="cell-container"><div class="cell-decorator"><pre>In [5]:</pre></div><div id="d1cc7c49" class="cell" data-execution_count="5">
+<div class="cell-container"><div class="cell-decorator"><pre>In [5]:</pre></div><div id="db726d1d" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>Markdown(<span class="ss">f"The hand-written controller scores </span><span class="sc">{</span>ctrl[<span class="st">'mean'</span>]<span class="sc">:.1f}</span><span class="ss"> ± </span><span class="sc">{</span>ctrl[<span class="st">'std'</span>]<span class="sc">:.1f}</span><span class="ss"> (median </span><span class="sc">{</span>ctrl[<span class="st">'median'</span>]<span class="sc">:.1f}</span><span class="ss">) over </span><span class="sc">{</span>ctrl[<span class="st">'episodes'</span>]<span class="sc">}</span><span class="ss"> episodes, "</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>         <span class="st">"well inside the solved range. The environment is therefore not the cause of the −760 plateau."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display cell-output-markdown" data-execution_count="5">
@@ -489,6 +489,27 @@ Table&nbsp;1: Pendulum seed studies. Final return is the trained mean policy on 
 <td style="text-align: right;">-759.7</td>
 <td style="text-align: right;">-207.8</td>
 </tr>
+<tr class="odd">
+<td style="text-align: left;">small pop</td>
+<td style="text-align: left;">TPU</td>
+<td style="text-align: center;">1 / 12</td>
+<td style="text-align: right;">-747.1</td>
+<td style="text-align: right;">-193.8</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">large pop</td>
+<td style="text-align: left;">TPU</td>
+<td style="text-align: center;">1 / 12</td>
+<td style="text-align: right;">-713.4</td>
+<td style="text-align: right;">-191.5</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">curriculum</td>
+<td style="text-align: left;">TPU</td>
+<td style="text-align: center;">0 / 12</td>
+<td style="text-align: right;">-763.2</td>
+<td style="text-align: right;">-200.2</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -521,7 +542,7 @@ Figure&nbsp;2: Mean-policy return per generation for every seed of the CPU small
 </div>
 </div>
 </div></div>
-<div class="cell-container"><div class="cell-decorator"><pre>In [8]:</pre></div><div id="c3f20a9d" class="cell" data-execution_count="8">
+<div class="cell-container"><div class="cell-decorator"><pre>In [8]:</pre></div><div id="75f8aa93" class="cell" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>s0, r0 <span class="op">=</span> studies[<span class="st">"small_pop"</span>]<span class="op">;</span> s1, r1 <span class="op">=</span> studies[<span class="st">"curriculum"</span>]</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>stuck <span class="op">=</span> [<span class="bu">float</span>(r[<span class="st">"final_eval"</span>]) <span class="cf">for</span> r <span class="kw">in</span> r0 <span class="cf">if</span> <span class="bu">float</span>(r[<span class="st">"final_eval"</span>]) <span class="op">&lt;=</span> <span class="op">-</span><span class="dv">600</span>]</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>escaped <span class="op">=</span> [<span class="bu">float</span>(r[<span class="st">"final_eval"</span>]) <span class="cf">for</span> r <span class="kw">in</span> r0 <span class="cf">if</span> <span class="bu">float</span>(r[<span class="st">"final_eval"</span>]) <span class="op">&gt;</span> <span class="op">-</span><span class="dv">600</span>]</span>
@@ -537,7 +558,7 @@ Figure&nbsp;2: Mean-policy return per generation for every seed of the CPU small
 <p>With identical hyperparameters, 1 of 8 seeds solve the swing-up (<a href="#tbl-seeds" class="quarto-xref">Table&nbsp;1</a>, <a href="#fig-seeds" class="quarto-xref">Figure&nbsp;2</a>). 2 of 8 leave the plateau at all (1 of them narrowly misses the threshold, at -240). The other 6 finish between -767 and -740: a policy that spins or hangs near the bottom instead of balancing. The curriculum does not help: 0 of 8 seeds solved, median -760. Starting near upright teaches balancing, but balancing does not lead to swinging up, so the hard part of the task is still unsolved when the start range widens.</p>
 </div>
 </div></div>
-<div id="d0fb6dec" class="cell markdown">
+<div id="4da72d08" class="cell markdown">
 <p>In exploratory runs we also varied <span class="math inline">\(\sigma\)</span> (0.05–0.1, with and without decay), the learning rate, the number of episodes per member (4–16), the network width (32 or 64 units) and weight decay (0 or 0.005). None of these consistently removed the plateau. The same setting solved the task from one seed and failed from another. Even changing how often the training loop logs, which changes how the random-key stream is split, flipped individual outcomes. Our earlier sweep trained every configuration from the same single seed, so its ranking of configurations mostly reflects which random streams happened to escape the plateau.</p>
 <section id="discussion" class="level2" data-number="4">
 <h2 data-number="4" class="anchored" data-anchor-id="discussion"><span class="header-section-number">4</span> Discussion</h2>

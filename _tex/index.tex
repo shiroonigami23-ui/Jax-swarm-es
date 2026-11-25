@@ -373,8 +373,8 @@ then falls as the batch outgrows the cache. On the T4 it keeps rising to
 15.1M steps/s at 65,536 environments, 34× the CPU at the same size
 (Figure~\ref{fig-throughput}). With a single environment the GPU is
 slower than the CPU (25k vs 94k steps/s), because launch overhead
-dominates. TPU numbers will appear here once
-\texttt{notebooks/tpu\_run.ipynb} has been run.
+dominates. On the TPU (TPU v5 lite) the peak is 289.7M steps/s at 8,192
+environments.
 
 \subsection{Drone}\label{drone}
 
@@ -423,6 +423,9 @@ Best final return
 \endlastfoot
 small pop & CPU & 1 / 8 & -752.0 & -191.3 \\
 curriculum & CPU & 0 / 8 & -759.7 & -207.8 \\
+small pop & TPU & 1 / 12 & -747.1 & -193.8 \\
+large pop & TPU & 1 / 12 & -713.4 & -191.5 \\
+curriculum & TPU & 0 / 12 & -763.2 & -200.2 \\
 
 \end{longtable}
 

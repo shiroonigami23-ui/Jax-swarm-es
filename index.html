@@ -263,7 +263,7 @@ g = \frac{1}{n\sigma}\sum_{i=1}^{n} u_i\,\epsilon_i
 <div id="fig-throughput" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-throughput-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<a href="index_files/figure-html/fig-throughput-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="Figure&nbsp;1: Drone environment throughput against the number of parallel environments, one 500-step episode per environment."><img src="index_files/figure-html/fig-throughput-output-1.png" width="613" height="354" class="figure-img"></a>
+<a href="index_files/figure-html/fig-throughput-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="Figure&nbsp;1: Drone environment throughput against the number of parallel environments, one 500-step episode per environment."><img src="index_files/figure-html/fig-throughput-output-1.png" width="614" height="354" class="figure-img"></a>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-throughput-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;1: Drone environment throughput against the number of parallel environments, one 500-step episode per environment.
@@ -272,15 +272,15 @@ Figure&nbsp;1: Drone environment throughput against the number of parallel envir
 </div>
 </div>
 </div>
-<div id="c805e337" class="cell" data-execution_count="3">
+<div id="e5330772" class="cell" data-execution_count="3">
 <div class="cell-output cell-output-display cell-output-markdown" data-execution_count="3">
-<p>On the CPU, throughput peaks at 708k steps/s with 1,024 environments and then falls as the batch outgrows the cache. On the T4 it keeps rising to 15.1M steps/s at 65,536 environments, 34× the CPU at the same size (<a href="#fig-throughput" class="quarto-xref">Figure&nbsp;1</a>). With a single environment the GPU is slower than the CPU (25k vs 94k steps/s), because launch overhead dominates. TPU numbers will appear here once <code>notebooks/tpu_run.ipynb</code> has been run.</p>
+<p>On the CPU, throughput peaks at 708k steps/s with 1,024 environments and then falls as the batch outgrows the cache. On the T4 it keeps rising to 15.1M steps/s at 65,536 environments, 34× the CPU at the same size (<a href="#fig-throughput" class="quarto-xref">Figure&nbsp;1</a>). With a single environment the GPU is slower than the CPU (25k vs 94k steps/s), because launch overhead dominates. On the TPU (TPU v5 lite) the peak is 289.7M steps/s at 8,192 environments.</p>
 </div>
 </div>
 </section>
 <section id="drone" class="level3" data-number="3.2">
 <h3 data-number="3.2" class="anchored" data-anchor-id="drone"><span class="header-section-number">3.2</span> Drone</h3>
-<div id="603e90fb" class="cell" data-execution_count="4">
+<div id="ab2e13e8" class="cell" data-execution_count="4">
 <div class="cell-output cell-output-display cell-output-markdown" data-execution_count="4">
 <p>With <span class="math inline">\(n=2048\)</span>, <span class="math inline">\(k=5\)</span> (10,240 environments per generation) and 500 generations on the T4, the drone goes from a return of -4.1 (crashing, no targets) to 77.0 with 9.2 targets per 10-second episode (average of the last 10 generations: 75.1, 8.7 targets). The best generation was 468 (86.6). The whole run took 1.5 minutes. Most of the gain comes in the first ~40 generations; after that the return plateaus.</p>
 </div>
@@ -288,7 +288,7 @@ Figure&nbsp;1: Drone environment throughput against the number of parallel envir
 </section>
 <section id="the-pendulum-is-solvable-but-es-is-bimodal" class="level3" data-number="3.3">
 <h3 data-number="3.3" class="anchored" data-anchor-id="the-pendulum-is-solvable-but-es-is-bimodal"><span class="header-section-number">3.3</span> The pendulum is solvable, but ES is bimodal</h3>
-<div id="d1cc7c49" class="cell" data-execution_count="5">
+<div id="db726d1d" class="cell" data-execution_count="5">
 <div class="cell-output cell-output-display cell-output-markdown" data-execution_count="5">
 <p>The hand-written controller scores -139.5 ± 88.7 (median -121.9) over 100 episodes, well inside the solved range. The environment is therefore not the cause of the −760 plateau.</p>
 </div>
@@ -333,6 +333,27 @@ Table&nbsp;1: Pendulum seed studies. Final return is the trained mean policy on 
 <td style="text-align: right;">-759.7</td>
 <td style="text-align: right;">-207.8</td>
 </tr>
+<tr class="odd">
+<td style="text-align: left;">small pop</td>
+<td style="text-align: left;">TPU</td>
+<td style="text-align: center;">1 / 12</td>
+<td style="text-align: right;">-747.1</td>
+<td style="text-align: right;">-193.8</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">large pop</td>
+<td style="text-align: left;">TPU</td>
+<td style="text-align: center;">1 / 12</td>
+<td style="text-align: right;">-713.4</td>
+<td style="text-align: right;">-191.5</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">curriculum</td>
+<td style="text-align: left;">TPU</td>
+<td style="text-align: center;">0 / 12</td>
+<td style="text-align: right;">-763.2</td>
+<td style="text-align: right;">-200.2</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -354,7 +375,7 @@ Figure&nbsp;2: Mean-policy return per generation for every seed of the CPU small
 </div>
 </div>
 </div>
-<div id="c3f20a9d" class="cell" data-execution_count="8">
+<div id="75f8aa93" class="cell" data-execution_count="8">
 <div class="cell-output cell-output-display cell-output-markdown" data-execution_count="8">
 <p>With identical hyperparameters, 1 of 8 seeds solve the swing-up (<a href="#tbl-seeds" class="quarto-xref">Table&nbsp;1</a>, <a href="#fig-seeds" class="quarto-xref">Figure&nbsp;2</a>). 2 of 8 leave the plateau at all (1 of them narrowly misses the threshold, at -240). The other 6 finish between -767 and -740: a policy that spins or hangs near the bottom instead of balancing. The curriculum does not help: 0 of 8 seeds solved, median -760. Starting near upright teaches balancing, but balancing does not lead to swinging up, so the hard part of the task is still unsolved when the start range widens.</p>
 </div>
