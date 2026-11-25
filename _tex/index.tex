@@ -373,8 +373,12 @@ then falls as the batch outgrows the cache. On the T4 it keeps rising to
 15.1M steps/s at 65,536 environments, 34× the CPU at the same size
 (Figure~\ref{fig-throughput}). With a single environment the GPU is
 slower than the CPU (25k vs 94k steps/s), because launch overhead
-dominates. On the TPU (TPU v5 lite) the peak is 289.7M steps/s at 8,192
-environments.
+dominates. On the TPU (TPU v5 lite) the peak is 290M steps/s at 8,192
+environments, 19× the T4 peak. Above that size it drops sharply, to 37M
+steps/s at 262,144 environments (still 2.5× the T4 peak). Each
+environment carries its own copy of the policy parameters, so we
+attribute the cliff to the working set no longer fitting in on-chip
+memory. This is a hypothesis; we have not profiled it.
 
 \subsection{Drone}\label{drone}
 
@@ -493,12 +497,9 @@ and Furuta 2000). Options we have not yet tested:
   competitive on many control tasks (Mania et al. 2018).
 \end{itemize}
 
-\textbf{Limitations.} Two small tasks; one policy architecture; the CPU
-seed studies use 8 seeds each, so the success rates are coarse; the
-drone was trained from a single seed. The TPU study (12 seeds per
-setting, three settings) is defined in \texttt{colab\_run.py\ -\/-tpu}.
-Its numbers appear in Table~\ref{tbl-seeds} and
-Figure~\ref{fig-throughput} automatically once it has run.
+\textbf{Limitations.} Two small tasks; one policy architecture; at most
+12 seeds per setting, so the success rates are coarse; the drone was
+trained from a single seed. The TPU throughput cliff is not profiled.
 
 \section{Reproducibility}\label{reproducibility}
 

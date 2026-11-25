@@ -121,7 +121,10 @@ Markdown(f"On the CPU, throughput peaks at {peak_cpu[1]/1e3:,.0f}k steps/s with 
          f"On the T4 it keeps rising to {peak_gpu[1]/1e6:.1f}M steps/s at {peak_gpu[0]:,} environments, "
          f"{gpu[n_big]/cpu[n_big]:.0f}× the CPU at the same size (@fig-throughput). "
          f"With a single environment the GPU is slower than the CPU ({gpu[1]/1e3:.0f}k vs {cpu[1]/1e3:.0f}k steps/s), because launch overhead dominates. "
-         + (f"On the TPU ({tpu_summary['device']}) the peak is {max(tpu.values())/1e6:.1f}M steps/s at {max(tpu, key=tpu.get):,} environments."
+         + (f"On the TPU ({tpu_summary['device']}) the peak is {max(tpu.values())/1e6:.0f}M steps/s at {max(tpu, key=tpu.get):,} environments, "
+            f"{max(tpu.values())/peak_gpu[1]:.0f}× the T4 peak. Above that size it drops sharply, to {tpu[max(tpu)]/1e6:.0f}M steps/s at {max(tpu):,} environments "
+            f"(still {tpu[max(tpu)]/peak_gpu[1]:.1f}× the T4 peak). Each environment carries its own copy of the policy parameters, "
+            "so we attribute the cliff to the working set no longer fitting in on-chip memory. This is a hypothesis; we have not profiled it."
             if tpu else "TPU numbers will appear here once `notebooks/tpu_run.ipynb` has been run."))
 ```
 
@@ -197,7 +200,7 @@ In exploratory runs we also varied $\sigma$ (0.05–0.1, with and without decay)
 * *Better curricula*, such as reverse curricula that start from states the current policy can already reach [@florensa2017reverse] instead of a fixed angle schedule [@bengio2009curriculum].
 * *Simpler policies.* Linear policies with random search are competitive on many control tasks [@mania2018].
 
-**Limitations.** Two small tasks; one policy architecture; the CPU seed studies use 8 seeds each, so the success rates are coarse; the drone was trained from a single seed. The TPU study (12 seeds per setting, three settings) is defined in `colab_run.py --tpu`. Its numbers appear in @tbl-seeds and @fig-throughput automatically once it has run.
+**Limitations.** Two small tasks; one policy architecture; at most 12 seeds per setting, so the success rates are coarse; the drone was trained from a single seed. The TPU throughput cliff is not profiled.
 
 ## Reproducibility
 
